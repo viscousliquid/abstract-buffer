@@ -2,39 +2,50 @@
 
 int allocate_block(struct buffer *buf)
 {
-	struct buffer_block *block = malloc(buf->block_size + 1);
+    int size = buf->block_size + sizeof(buffer_block);
+	struct buffer_block *block = malloc(size);
+    memset(block, 0, size);
 
 	if (block) {
 		if (buf->tail) {
-			block->next = buf->tail->next;
 			buf->tail->next = block;
-			buf->block_count++;
+            buf->tail = block;
+            buf->tail_offset = 0;
 		} else {
-			if (buf->head) {
-				buf->head->next = block;
-				block->next = buf->head;
-			} else
-				buf->head = block;
+            buf->head = buf->tail = block;
+            buf->head_offset = 0;
+            buf->tail_offset = 0;
 		}
+		buf->total_size += buf->block_size;
 		return 0;
 	} else
 		return ENOMEM;
 }
 
-struct buffer *new_buffer(int size, int count)
+void rollback_append(struct buffer *buf, struct buffer_block *block, int offset)
+{
+    struct buffer_block *next, *itr = block->next;
+
+    while (itr) {
+        next = itr->next;
+        free(itr);
+        itr = next;
+    }
+
+    buf->tail = block;
+    buf->tail_offset = offset;
+}
+
+struct buffer *new_buffer(int block_size)
 {
 	struct buffer *buf = malloc(sizeof(struct buffer));
 
 	memset(buf, 0, sizeof(struct buffer));
-	buf->block_size = size;
+	buf->block_size = block_size;
 
-	while (count) {
-		if (allocate_block(buf) != 0) {
-			free_buffer(buf);
-			*buf = NULL;
-			break;
-		}
-		count--;
+	if (allocate_block(buf) != 0) {
+		free_buffer(buf);
+		*buf = NULL;
 	}
 
 	return buf;
@@ -45,27 +56,90 @@ void free_buffer(struct buffer *buf);
 	struct buffer_block *iter, *next;
 
 	itr = buf->head;
-	do {
+	while (itr) {
 		next = itr->next;
 		free(itr);
-	} while (next != buf->head);
+        itr = next;
+	}
 
 	free(buf);
 }
 
-int append_data(struct buffer *buf, char *data, int offset, int size);
+int buffer_append(struct buffer *buf, char *data, int offset, int size);
 {
-	int req_blocks = (int) ceil((double) size / buf->block_size);
+    struct buffer_block *cp_block = buf->tail;
+    int cp_offset = buf->tail_offset;
+    int copy_size, copied = size;
+    char *block_data;
 
-	while ((buf->count - buf->utilized) < req_blocks)
-		if (allocate_block(buf) != 0)
-			return -1;
+    if ((buf->tail == NULL) && (allocate_block(buf) != 0))
+        return -1;
+
+    while (size > 0) {
+        copy_size = buf->block_size - buf->tail_offset;
+        copy_size = copy_size >= size ? size : copy_size;
+
+        block_data = (char *)(buf->tail + 1);
+        memcpy(block_data + buf->tail_offset,
+                data + offset,
+                copy_size);
+
+        size -= copy_size;
+        buf->tail_offset += copy_size;
+
+        if ((buf->tail_offset == buf->block_size) && (size > 0)) {
+            if (allocate_block(buf) != 0) {
+        		rollback_append(buf, cp_block, cp_offset);
+        		copied = -1;
+                break;
+        	}
+        }
+    }
+
+    return copied;
 }
 
-int read_data(struct buffer *buf, char *dest, int offset, int size);
+int buffer_read(struct buffer *buf, char *dest, int offset, int size);
 {
+    struct buffer_block *block;
+    int copy_size, copied = 0;
+    char *block_data;
+
+    while (size > 0) {
+        if (buf->head == NULL)
+            break;
+
+        copy_size = buf->block_size - buf->head_offset;
+        copy_size = copy_size >= size ? size : copy_size;
+
+        block_data = (char *)(buf->head + 1);
+        memcpy(block_data + buf->head_offset,
+                data + offset,
+                copy_size);
+
+        size -= copy_size;
+        copied += copy_size;
+        buf->head_offset += copy_size;
+
+        if (buf->head_offset == buf->block_size) {
+            block = buf->head;
+            buf->head = block->next;
+            buf->head_offset = 0;
+            free(block);
+        }
+    }
+
+    return copied;
 }
 
-void flush(struct buffer *buf);
+void flush_buffer(struct buffer *buf);
 {
+    struct buffer_block *iter, *next;
+
+	itr = buf->head;
+	while (itr) {
+		next = itr->next;
+		free(itr);
+        itr = next;
+	}
 }
