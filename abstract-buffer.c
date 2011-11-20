@@ -1,8 +1,11 @@
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "abstract-buffer.h"
 
 int allocate_block(struct buffer *buf)
 {
-    int size = buf->block_size + sizeof(buffer_block);
+    int size = buf->block_size + sizeof(struct buffer_block);
 	struct buffer_block *block = malloc(size);
     memset(block, 0, size);
 
@@ -45,27 +48,27 @@ struct buffer *new_buffer(int block_size)
 
 	if (allocate_block(buf) != 0) {
 		free_buffer(buf);
-		*buf = NULL;
+		buf = NULL;
 	}
 
 	return buf;
 }
 
-void free_buffer(struct buffer *buf);
+void free_buffer(struct buffer *buf)
 {
 	struct buffer_block *iter, *next;
 
-	itr = buf->head;
-	while (itr) {
-		next = itr->next;
-		free(itr);
-        itr = next;
+	iter = buf->head;
+	while (iter) {
+		next = iter->next;
+		free(iter);
+        iter = next;
 	}
 
 	free(buf);
 }
 
-int buffer_append(struct buffer *buf, char *data, int offset, int size);
+int buffer_append(struct buffer *buf, char *src, int offset, int size)
 {
     struct buffer_block *cp_block = buf->tail;
     int cp_offset = buf->tail_offset;
@@ -81,7 +84,7 @@ int buffer_append(struct buffer *buf, char *data, int offset, int size);
 
         block_data = (char *)(buf->tail + 1);
         memcpy(block_data + buf->tail_offset,
-                data + offset,
+                src + offset,
                 copy_size);
 
         size -= copy_size;
@@ -99,7 +102,7 @@ int buffer_append(struct buffer *buf, char *data, int offset, int size);
     return copied;
 }
 
-int buffer_read(struct buffer *buf, char *dest, int offset, int size);
+int buffer_read(struct buffer *buf, char *dest, int offset, int size)
 {
     struct buffer_block *block;
     int copy_size, copied = 0;
@@ -114,7 +117,7 @@ int buffer_read(struct buffer *buf, char *dest, int offset, int size);
 
         block_data = (char *)(buf->head + 1);
         memcpy(block_data + buf->head_offset,
-                data + offset,
+                dest + offset,
                 copy_size);
 
         size -= copy_size;
@@ -132,14 +135,14 @@ int buffer_read(struct buffer *buf, char *dest, int offset, int size);
     return copied;
 }
 
-void flush_buffer(struct buffer *buf);
+void flush_buffer(struct buffer *buf)
 {
     struct buffer_block *iter, *next;
 
-	itr = buf->head;
-	while (itr) {
-		next = itr->next;
-		free(itr);
-        itr = next;
+	iter = buf->head;
+	while (iter) {
+		next = iter->next;
+		free(iter);
+        iter = next;
 	}
 }

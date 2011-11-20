@@ -14,7 +14,7 @@ struct buffer {
    struct buffer_block	*tail;
 };
 
-struct buffer *new_buffer(int size, int count);
+struct buffer *new_buffer(int block_size);
 void free_buffer(struct buffer *buf);
 int buffer_append(struct buffer *buf, char *data, int offset, int size);
 int buffer_read(struct buffer *buf, char *dest, int offset, int size);
