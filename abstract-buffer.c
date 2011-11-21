@@ -79,6 +79,14 @@ int buffer_append(struct buffer *buf, char *src, int offset, int size)
         return -1;
 
     while (size > 0) {
+        if ((buf->tail_offset == buf->block_size) && (size > 0)) {
+            if (allocate_block(buf) != 0) {
+        		rollback_append(buf, cp_block, cp_offset);
+        		copied = -1;
+                break;
+        	}
+        }
+
         copy_size = buf->block_size - buf->tail_offset;
         copy_size = copy_size >= size ? size : copy_size;
 
@@ -88,15 +96,9 @@ int buffer_append(struct buffer *buf, char *src, int offset, int size)
                 copy_size);
 
         size -= copy_size;
+	offset += copy_size;
         buf->tail_offset += copy_size;
-
-        if ((buf->tail_offset == buf->block_size) && (size > 0)) {
-            if (allocate_block(buf) != 0) {
-        		rollback_append(buf, cp_block, cp_offset);
-        		copied = -1;
-                break;
-        	}
-        }
+	buf->total_size += copy_size;
     }
 
     return copied;
@@ -121,8 +123,10 @@ int buffer_read(struct buffer *buf, char *dest, int offset, int size)
                 copy_size);
 
         size -= copy_size;
+	offset += copy_size;
         copied += copy_size;
         buf->head_offset += copy_size;
+	buf->total_size -= copy_size;
 
         if (buf->head_offset == buf->block_size) {
             block = buf->head;
