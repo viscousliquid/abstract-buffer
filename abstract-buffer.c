@@ -110,7 +110,7 @@ int buffer_read(struct buffer *buf, char *dest, int offset, int size)
 	int copy_size, copied = 0;
 	char *block_data;
 	
-	while (size > 0) {
+	while (size > 0 && buf->total_size > 0) {
 		if (buf->head == NULL)
 			break;
 		
