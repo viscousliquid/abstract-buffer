@@ -6,10 +6,10 @@ struct buffer_block {
 };
 
 struct buffer {
-   int			        block_size;
-   int    		        total_size;
-   short int		    head_offset;
-   short int		    tail_offset;
+   int			         block_size;
+   int    		         total_size;
+   short int		      head_offset;
+   short int		      tail_offset;
    struct buffer_block	*head;
    struct buffer_block	*tail;
 };
