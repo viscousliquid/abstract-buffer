@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	char data[60];
 	struct buffer *buffer = new_buffer(80);
 	int in = open("lorem_ipsum.txt", O_RDONLY);
-	int out = open("result.txt", O_WRONLY|O_CREAT|O_TRUNC|S_IRUSR);
+	int out = open("result.txt", O_WRONLY|O_CREAT|O_TRUNC|S_IRUSR|S_IWUSR);
 
 	if (!( in > 0  ) || !( out > 0 ))
 		return -1;
