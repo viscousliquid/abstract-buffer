@@ -19,7 +19,6 @@ int allocate_block(struct buffer *buf)
 			buf->head_offset = 0;
 			buf->tail_offset = 0;
 		}
-		buf->total_size += buf->block_size;
 		return 0;
 	} else
 		return ENOMEM;
@@ -116,6 +115,8 @@ int buffer_read(struct buffer *buf, char *dest, int offset, int size)
 		
 		copy_size = buf->block_size - buf->head_offset;
 		copy_size = copy_size >= size ? size : copy_size;
+		copy_size = copy_size >= buf->total_size ?
+				buf->total_size : copy_size;
 		
 		block_data = (char *)(buf->head + 1);
 		memcpy(dest + offset,
